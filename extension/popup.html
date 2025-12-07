@@ -2,57 +2,206 @@
 <html>
 
 <head>
-  <title>StudyTrack</title>
+  <title>DevOrbit</title>
   <style>
-    body {
-      width: 300px;
-      padding: 10px;
-      font-family: sans-serif;
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: rgba(255, 255, 255, 0.05);
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --accent-cyan: #06b6d4;
+      --accent-blue: #2563eb;
+      --danger: #ef4444;
+      --success: #22c55e;
     }
 
-    h1 {
-      font-size: 16px;
-      margin-bottom: 10px;
+    body {
+      width: 320px;
+      padding: 0;
+      margin: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-primary);
+      overflow: hidden;
+    }
+
+    .container {
+      padding: 20px;
+      background: radial-gradient(circle at top right, rgba(6, 182, 212, 0.15), transparent 40%),
+        radial-gradient(circle at bottom left, rgba(37, 99, 235, 0.15), transparent 40%);
+      min-height: 400px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .logo {
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(to right, #22d3ee, #3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    h2 {
+      font-size: 14px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 0 0 12px 0;
+      font-weight: 600;
     }
 
     input {
       width: 100%;
-      padding: 5px;
-      margin-bottom: 10px;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
       box-sizing: border-box;
+      outline: none;
+      transition: all 0.2s;
+      margin-bottom: 12px;
+    }
+
+    input:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2);
     }
 
     button {
       width: 100%;
-      padding: 5px;
-      background: #2563eb;
-      color: white;
+      padding: 12px;
       border: none;
+      border-radius: 8px;
+      font-weight: 600;
       cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
     }
 
-    button:hover {
-      background: #1d4ed8;
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      color: white;
+      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.25);
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.2);
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--success);
+      margin-bottom: 16px;
+      background: rgba(34, 197, 94, 0.1);
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      background-color: var(--success);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--success);
     }
 
     .hidden {
-      display: none;
+      display: none !important;
+    }
+
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .stat-label {
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .stat-value {
+      color: white;
+      font-weight: 600;
+      font-size: 13px;
     }
   </style>
 </head>
 
 <body>
-  <h1>StudyTrack</h1>
+  <div class="container">
+    <div class="header">
+      <div class="logo">DevOrbit</div>
+    </div>
 
-  <div id="login" class="hidden">
-    <p>Enter your JWT Token (copy from web console for now):</p>
-    <input type="text" id="token" placeholder="Paste token here" />
-    <button id="saveBtn">Save Token</button>
-  </div>
+    <!-- Login View -->
+    <div id="login" class="hidden">
+      <div class="card">
+        <h2>Authentication</h2>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
+          Paste your JWT token from the web dashboard to enable tracking.
+        </p>
+        <input type="text" id="token" placeholder="eyJhbGciOi..." />
+        <button id="saveBtn" class="btn-primary">Connect Account</button>
+      </div>
+    </div>
 
-  <div id="status" class="hidden">
-    <p>Tracking active.</p>
-    <button id="logoutBtn" style="background: #dc2626;">Logout</button>
+    <!-- Status View -->
+    <div id="status" class="hidden">
+      <div class="status-indicator">
+        <div class="dot"></div>
+        <span>Tracking Active</span>
+      </div>
+
+      <div class="card">
+        <h2>Session Stats</h2>
+        <div class="stats-row">
+          <span class="stat-label">Current Domain</span>
+          <span class="stat-value" id="currentDomain">...</span>
+        </div>
+        <div class="stats-row">
+          <span class="stat-label">Session Time</span>
+          <span class="stat-value" id="sessionTime">0m</span>
+        </div>
+      </div>
+
+      <button id="logoutBtn" class="btn-danger">Disconnect</button>
+    </div>
   </div>
 
   <script src="popup.js"></script>

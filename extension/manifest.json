@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "StudyTrack Extension",
+    "name": "DevOrbit Extension",
     "version": "1.0",
     "description": "Track your study and timepass activity.",
     "permissions": [
@@ -9,6 +9,9 @@
         "storage",
         "alarms",
         "scripting"
+    ],
+    "host_permissions": [
+        "http://localhost:4000/*"
     ],
     "background": {
         "service_worker": "background.js"

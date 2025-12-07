@@ -64,3 +64,22 @@ export const loginUser = async (req: Request, res: Response) => {
         res.status(500).json({ message: (error as Error).message });
     }
 };
+
+export const getMe = async (req: Request, res: Response) => {
+    try {
+        const user = await User.findById((req as any).user._id);
+        if (user) {
+            res.json({
+                user: {
+                    _id: user._id,
+                    name: user.name,
+                    email: user.email
+                }
+            });
+        } else {
+            res.status(404).json({ message: 'User not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+    }
+};

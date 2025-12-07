@@ -74,7 +74,7 @@ async function saveActivity(domain, start, end) {
         metadata: { domain },
         startTime: new Date(start).toISOString(),
         endTime: new Date(end).toISOString(),
-        durationMinutes: Math.round((end - start) / 60000)
+        durationMinutes: Math.max(1, Math.round((end - start) / 60000))
     };
 
     // Retrieve token

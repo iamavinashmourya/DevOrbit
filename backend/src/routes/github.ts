@@ -63,7 +63,7 @@ router.post('/connect', auth, async (req: any, res) => {
         }
 
         user.integrations.github = {
-            accessTokenEncrypted: access_token, // In a real app, encrypt this!
+            accessTokenEncrypted: access_token,
             username: login,
             id: String(id),
             connectedAt: new Date()

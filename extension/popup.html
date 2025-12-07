@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>StudyTrack</title>
+  <style>
+    body {
+      width: 300px;
+      padding: 10px;
+      font-family: sans-serif;
+    }
+
+    h1 {
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    input {
+      width: 100%;
+      padding: 5px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+
+    button {
+      width: 100%;
+      padding: 5px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>StudyTrack</h1>
+
+  <div id="login" class="hidden">
+    <p>Enter your JWT Token (copy from web console for now):</p>
+    <input type="text" id="token" placeholder="Paste token here" />
+    <button id="saveBtn">Save Token</button>
+  </div>
+
+  <div id="status" class="hidden">
+    <p>Tracking active.</p>
+    <button id="logoutBtn" style="background: #dc2626;">Logout</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>

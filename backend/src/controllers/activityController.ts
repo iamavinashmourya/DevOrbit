@@ -45,22 +45,71 @@ export const createActivity = async (req: Request, res: Response) => {
         if (startTime && finalEndTime) {
             const start = new Date(startTime).getTime();
             const end = new Date(finalEndTime).getTime();
-            durationMinutes = Math.round((end - start) / 60000);
+            durationMinutes = Math.ceil((end - start) / 60000);
         }
 
-        const activity = new Activity({
-            userId: req.user._id,
-            type,
-            title,
-            source: source || 'manual',
-            startTime,
-            endTime: finalEndTime,
-            durationMinutes,
-            metadata,
-        });
+        // Get start and end of today (user's timezone)
+        const activityDate = new Date(startTime);
+        const startOfDay = new Date(activityDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(activityDate);
+        endOfDay.setHours(23, 59, 59, 999);
 
-        const createdActivity = await activity.save();
-        res.status(201).json(createdActivity);
+        // Check if there's already an activity for this domain/type today
+        const domain = metadata?.domain;
+
+        console.log(`[Activity] Checking for existing: domain=${domain}, type=${type}, title=${title}`);
+
+        const existingActivity = await Activity.findOne({
+            userId: req.user._id,
+            'metadata.domain': domain,
+            type: type, // Match on type instead of exact title
+            startTime: {
+                $gte: startOfDay,
+                $lte: endOfDay
+            }
+        }).sort({ startTime: -1 }); // Get the most recent one
+
+        if (existingActivity && domain) {
+            console.log(`[Activity] MERGING with existing activity ID: ${existingActivity._id}`);
+
+            // Merge: Add duration to existing activity
+            existingActivity.durationMinutes += durationMinutes;
+
+            // Update title to the latest (in case page changed)
+            existingActivity.title = title;
+
+            // Update endTime to the latest
+            if (new Date(finalEndTime) > new Date(existingActivity.endTime)) {
+                existingActivity.endTime = finalEndTime;
+            }
+
+            // Keep the earliest startTime
+            if (new Date(startTime) < new Date(existingActivity.startTime)) {
+                existingActivity.startTime = startTime;
+            }
+
+            const updatedActivity = await existingActivity.save();
+            console.log(`[Activity] Merged! Total duration: ${updatedActivity.durationMinutes}min`);
+            res.status(200).json(updatedActivity);
+        } else {
+            console.log(`[Activity] Creating NEW activity`);
+
+            // Create new activity
+            const activity = new Activity({
+                userId: req.user._id,
+                type,
+                title,
+                source: source || 'manual',
+                startTime,
+                endTime: finalEndTime,
+                durationMinutes,
+                metadata,
+            });
+
+            const createdActivity = await activity.save();
+            res.status(201).json(createdActivity);
+        }
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }

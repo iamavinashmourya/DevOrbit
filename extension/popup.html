@@ -198,9 +198,24 @@
           <span class="stat-label">Session Time</span>
           <span class="stat-value" id="sessionTime">0m</span>
         </div>
+
+        <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;">
+          <label style="font-size: 12px; color: #94a3b8; display: block; margin-bottom: 8px;">Activity Type</label>
+          <select id="typeSelect"
+            style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: white; outline: none;">
+            <option value="learn">Learning</option>
+            <option value="project">Project</option>
+            <option value="dsa">DSA</option>
+            <option value="timepass">Timepass</option>
+            <option value="app_usage">App Usage</option>
+            <option value="social">Social</option>
+          </select>
+        </div>
       </div>
 
       <button id="logoutBtn" class="btn-danger">Disconnect</button>
+      <button id="testBtn" style="margin-top: 10px; background: #3b82f6; color: white;">Test Connection</button>
+      <div id="testResult" style="margin-top: 10px; font-size: 12px; color: #cbd5e1;"></div>
     </div>
   </div>
 

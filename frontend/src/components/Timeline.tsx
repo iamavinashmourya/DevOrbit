@@ -38,136 +38,212 @@ const getActivityIcon = (type: string) => {
 };
 
 const getActivityColor = (type: string) => {
+    // Using semantic colors with opacity or specific semantic variables if possible
+    // For specific colors (green/blue/etc), we keep them as they are universally good,
+    // but ensure backgrounds clearly contrast with the theme.
     switch (type) {
-        case 'learn': return 'text-cyan-400 border-cyan-500/50 shadow-cyan-500/20';
-        case 'dsa': return 'text-green-400 border-green-500/50 shadow-green-500/20';
-        case 'project': return 'text-purple-400 border-purple-500/50 shadow-purple-500/20';
-        case 'timepass': return 'text-red-400 border-red-500/50 shadow-red-500/20';
-        case 'assignment': return 'text-orange-400 border-orange-500/50 shadow-orange-500/20';
-        default: return 'text-slate-400 border-slate-500/50 shadow-slate-500/20';
+        case 'learn': return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
+        case 'dsa': return 'text-green-500 bg-green-500/10 border-green-500/20';
+        case 'project': return 'text-purple-500 bg-purple-500/10 border-purple-500/20';
+        case 'timepass': return 'text-muted-foreground bg-muted border-border';
+        case 'assignment': return 'text-orange-500 bg-orange-500/10 border-orange-500/20';
+        default: return 'text-muted-foreground bg-muted border-border';
     }
 };
 
 const Timeline: React.FC<TimelineProps> = ({ activities }) => {
     const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
 
+    // Group activities by domain/title
+    const groupedActivities = React.useMemo(() => {
+        const groups: { [key: string]: Activity } = {};
+
+        // Process in reverse chronological order (assuming input is sorted new->old, or we sort it)
+        // Actually, let's just process all and then sort values by startTime desc
+
+        activities.forEach(act => {
+            const key = act.metadata?.domain || act.title;
+
+            if (!groups[key]) {
+                // Initialize with a clone of the activity
+                groups[key] = {
+                    ...act,
+                    history: act.history ? act.history.map(h => ({ ...h, _originalType: act.type })) : []
+                };
+            } else {
+                // Merge
+                const existing = groups[key];
+
+                // Add duration
+                existing.durationMinutes += act.durationMinutes;
+
+                // Update start time if current act is newer
+                if (new Date(act.startTime) > new Date(existing.startTime)) {
+                    existing.startTime = act.startTime;
+                    existing.type = act.type; // Use type of latest activity for the main icon
+                }
+
+                // Merge history
+                if (act.history) {
+                    const typedHistory = act.history.map(h => ({ ...h, _originalType: act.type }));
+                    existing.history = [...(existing.history || []), ...typedHistory];
+                }
+            }
+        });
+
+        // Convert back to array, process groups
+        return Object.values(groups).map(group => {
+            if (group.history && group.history.length > 0) {
+                // 1. Sort history by timestamp descending (Newest first)
+                group.history.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+                // 2. Deduplicate/Merge identical adjacent items
+                const mergedHistory: any[] = [];
+                let lastItem: any = null;
+
+                group.history.forEach((item) => {
+                    if (lastItem && lastItem.title === item.title && lastItem.url === item.url) {
+                        // Merge with previous item (add duration)
+                        lastItem.durationMinutes = (lastItem.durationMinutes || 0) + (item.durationMinutes || 0);
+                    } else {
+                        mergedHistory.push(item);
+                        lastItem = item;
+                    }
+                });
+                group.history = mergedHistory;
+
+                // 3. FORCE SYNC: Ensure the main card's type matches the very latest history item
+                const latestItem = group.history[0];
+                // @ts-ignore
+                if (latestItem._originalType) {
+                    // @ts-ignore
+                    group.type = latestItem._originalType;
+                }
+            }
+            return group;
+        }).sort((a, b) =>
+            new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+        );
+    }, [activities]);
+
     return (
-        <div className="glass-panel p-6 rounded-2xl relative">
-            <h2 className="text-xl font-bold text-white mb-6 flex items-center">
-                <Clock className="w-5 h-5 mr-2 text-cyan-400" />
-                Activity Timeline
-            </h2>
-            <div className="space-y-6 relative">
-                {/* Vertical Line */}
-                <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-cyan-500/50 via-purple-500/50 to-transparent"></div>
+        <>
+            <div className="card-minimal p-6 relative">
+                <h2 className="text-lg font-bold text-foreground mb-6 flex items-center">
+                    <Clock className="w-5 h-5 mr-3 text-muted-foreground" />
+                    Activity Timeline
+                </h2>
+                <div className="space-y-6 relative">
+                    {/* Vertical Line */}
+                    <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border"></div>
 
-                {activities.length === 0 ? (
-                    <div className="text-center py-12 text-slate-500">
-                        <p>No activities recorded today.</p>
-                    </div>
-                ) : (
-                    activities.map((act) => {
-                        const Icon = getActivityIcon(act.type);
-                        const colorClass = getActivityColor(act.type);
-                        const hasHistory = act.history && act.history.length > 0;
+                    {groupedActivities.length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground">
+                            <p>No activities recorded today.</p>
+                        </div>
+                    ) : (
+                        groupedActivities.map((act) => {
+                            const Icon = getActivityIcon(act.type);
+                            const styleClass = getActivityColor(act.type);
+                            // @ts-ignore - _originalType is injected during grouping
+                            const hasHistory = act.history && act.history.length > 0;
 
-                        return (
-                            <div
-                                key={act._id}
-                                className="relative pl-10 group cursor-pointer"
-                                onClick={() => setSelectedActivity(act)}
-                            >
-                                <div className={`absolute left-0 top-0 w-8 h-8 rounded-full bg-slate-900 border flex items-center justify-center shadow-[0_0_15px_rgba(0,0,0,0.5)] z-10 transition-all duration-300 group-hover:scale-110 ${colorClass}`}>
-                                    <Icon className="w-4 h-4" />
-                                </div>
-                                <div className="glass-card p-4 rounded-xl hover:bg-white/5 transition-all duration-300 group-hover:translate-x-1 group-active:scale-[0.99]">
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <h3 className="font-semibold text-slate-200 group-hover:text-white transition-colors flex items-center gap-2">
-                                                {act.metadata?.domain || act.title}
-                                                {hasHistory && act.history && act.history.length > 1 && (
-                                                    <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded-full">
-                                                        +{act.history.length}
-                                                    </span>
-                                                )}
-                                            </h3>
-                                            <p className="text-xs text-slate-400 uppercase tracking-wider mt-1 font-mono">
-                                                {act.type.replace('_', ' ')}
-                                            </p>
-                                        </div>
-                                        <div className="text-right">
-                                            <span className="text-xs font-medium text-slate-500 block">
-                                                {format(new Date(act.startTime), 'h:mm a')}
-                                            </span>
-                                            <span className="text-xs font-bold text-slate-900 bg-cyan-400 px-2 py-0.5 rounded-full mt-1 inline-block shadow-[0_0_10px_rgba(34,211,238,0.4)]">
-                                                {act.durationMinutes}m
-                                            </span>
-                                        </div>
+                            return (
+                                <div
+                                    key={act._id} // Note: _id might be duplicate if we naive clone, but checking uniqueness of key above helps
+                                    className="relative pl-10 group cursor-pointer"
+                                    onClick={() => setSelectedActivity(act)}
+                                >
+                                    <div className={`absolute left-0 top-1 w-8 h-8 rounded-lg border flex items-center justify-center z-10 transition-all duration-200 group-hover:scale-105 ${styleClass}`}>
+                                        <Icon className="w-4 h-4" />
                                     </div>
-                                    {/* Preview of latest history item if available */}
-                                    {hasHistory && (
-                                        <div className="mt-2 text-xs text-slate-500 truncate border-t border-slate-700/50 pt-2">
-                                            Latest: {act.title}
+                                    <div className="p-4 rounded-xl border border-transparent hover:bg-muted/50 transition-all duration-200 -mt-2 group-hover:border-border">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                                                    {act.metadata?.domain || act.title}
+                                                </h3>
+                                                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1 font-medium">
+                                                    {act.type.replace('_', ' ')}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-xs font-medium text-muted-foreground block">
+                                                    {format(new Date(act.startTime), 'h:mm a')}
+                                                </span>
+                                                <span className="text-xs font-bold text-foreground bg-muted px-2 py-0.5 rounded mt-1 inline-block border border-border">
+                                                    {act.durationMinutes}m
+                                                </span>
+                                            </div>
                                         </div>
-                                    )}
+                                        {/* Preview of latest history item if available */}
+                                        {hasHistory && act.history && (
+                                            <div className="mt-2 text-xs text-muted-foreground truncate border-t border-border pt-2">
+                                                Latest: {act.history[0].title}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })
-                )}
+                            );
+                        })
+                    )}
+                </div>
             </div>
 
-            {/* History Details Modal */}
+            {/* History Details Modal moved outside to escape transform context */}
             {selectedActivity && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedActivity(null)}>
-                    <div className="glass-panel p-6 rounded-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col relative animate-in fade-in zoom-in duration-200 shadow-2xl border border-slate-700" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={() => setSelectedActivity(null)}>
+                    <div className="bg-card border border-border p-6 rounded-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col relative shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-6 border-b border-border pb-4">
+                            <h3 className="text-lg font-bold text-foreground flex items-center gap-3">
                                 {(() => {
                                     const Icon = getActivityIcon(selectedActivity.type);
-                                    const colorClass = getActivityColor(selectedActivity.type).split(' ')[0];
-                                    return <Icon className={`w-6 h-6 ${colorClass}`} />;
+                                    const styleClass = getActivityColor(selectedActivity.type);
+                                    return (
+                                        <div className={`p-1.5 rounded-md ${styleClass}`}>
+                                            <Icon className="w-5 h-5" />
+                                        </div>
+                                    )
                                 })()}
                                 <span>{selectedActivity.metadata?.domain || selectedActivity.title}</span>
                             </h3>
                             <button
                                 onClick={() => setSelectedActivity(null)}
-                                className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                                className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                             >
-                                <X className="w-6 h-6" />
+                                <X className="w-5 h-5" />
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                        <div className="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
                             {!selectedActivity.history || selectedActivity.history.length === 0 ? (
-                                <div className="text-slate-400 text-center py-4">
+                                <div className="text-muted-foreground text-center py-8">
                                     <p>No detailed history available.</p>
-                                    <p className="text-xs text-slate-600 mt-2">Only activities starting now will track detailed history.</p>
                                 </div>
                             ) : (
-                                selectedActivity.history.slice().reverse().map((item, idx) => (
-                                    <div key={idx} className="p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group">
+                                selectedActivity.history.map((item, idx) => (
+                                    <div key={idx} className="p-3 rounded-lg border border-border hover:bg-muted transition-colors group">
                                         <div className="flex justify-between items-start gap-3">
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm text-slate-200 font-medium truncate" title={item.title}>
+                                                <p className="text-sm text-foreground font-medium truncate" title={item.title}>
                                                     {item.title}
                                                 </p>
-                                                <div className="flex items-center gap-3 mt-1.5 align-middle">
-                                                    <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
+                                                <div className="flex items-center gap-3 mt-2">
+                                                    <span className="text-[10px] text-muted-foreground font-mono flex items-center gap-1">
                                                         <Clock className="w-3 h-3" />
                                                         {format(new Date(item.timestamp), 'h:mm:ss a')}
                                                     </span>
 
-                                                    {/* Duration Badge */}
                                                     {item.duration !== undefined && (
-                                                        <span className="text-[10px] text-slate-300 bg-slate-700 px-1.5 py-0.5 rounded-md flex items-center font-bold">
+                                                        <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded flex items-center font-medium border border-border">
                                                             {item.duration} min
                                                         </span>
                                                     )}
 
-                                                    {/* Category Badge */}
-                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded border ${getActivityColor(selectedActivity.type).replace('shadow-', '').replace('text-', 'bg-').split(' ')[0]}/10 border-${getActivityColor(selectedActivity.type).split(' ')[0]}/20 text-${getActivityColor(selectedActivity.type).split(' ')[0].split('-')[1]}-300`}>
-                                                        {selectedActivity.type.toUpperCase()}
+                                                    {/* Category Badge - use specific type if grouped, else parent type */}
+                                                    <span className="text-[10px] px-1.5 py-0.5 rounded border border-border bg-muted text-muted-foreground">
+                                                        {/* @ts-ignore */}
+                                                        {(item._originalType || selectedActivity.type).toUpperCase()}
                                                     </span>
 
                                                     {item.url && (
@@ -175,7 +251,7 @@ const Timeline: React.FC<TimelineProps> = ({ activities }) => {
                                                             href={item.url}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="text-[10px] text-cyan-400 hover:underline flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto"
+                                                            className="text-[10px] text-primary hover:underline flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto"
                                                             onClick={e => e.stopPropagation()}
                                                         >
                                                             Open <ExternalLink className="w-3 h-3" />
@@ -189,14 +265,14 @@ const Timeline: React.FC<TimelineProps> = ({ activities }) => {
                             )}
                         </div>
 
-                        <div className="mt-6 pt-4 border-t border-slate-700 flex justify-between items-center text-sm text-slate-400">
-                            <span>Total Duration: <span className="text-white font-bold">{selectedActivity.durationMinutes}m</span></span>
+                        <div className="mt-4 pt-4 border-t border-border flex justify-between items-center text-xs text-muted-foreground">
+                            <span>Total: <span className="text-foreground font-medium">{selectedActivity.durationMinutes} min</span></span>
                             <span>{selectedActivity.history?.length || 0} entries</span>
                         </div>
                     </div>
                 </div>
             )}
-        </div>
+        </>
     );
 };
 

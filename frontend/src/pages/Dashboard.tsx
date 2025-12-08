@@ -144,22 +144,22 @@ const Dashboard: React.FC = () => {
     };
 
     return (
-        <div className="space-y-8">
-            <header className="flex justify-between items-end">
+        <div className="space-y-8 animate-in fade-in duration-500">
+            <header className="flex justify-between items-end border-b border-border pb-6">
                 <div>
-                    <h1 className="text-4xl font-bold text-white tracking-tight">
-                        Dashboard
+                    <h1 className="text-3xl font-bold text-foreground tracking-tight">
+                        Overview
                     </h1>
-                    <p className="text-slate-400 mt-2 text-lg">
-                        Welcome back, <span className="text-cyan-400 font-semibold">{user?.name}</span>.
+                    <p className="text-muted-foreground mt-2 text-sm">
+                        Welcome back, <span className="text-foreground font-medium">{user?.name}</span>. Here's your progress today.
                     </p>
                 </div>
                 <div className="text-right hidden md:block">
-                    <p className="text-sm text-slate-500 font-mono">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    <p className="text-sm text-muted-foreground font-mono tracking-wide">{new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</p>
                 </div>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <SummaryCard
                     title="Study Hours"
                     value={stats.studyHours}
@@ -194,73 +194,72 @@ const Dashboard: React.FC = () => {
                 />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
                     <Timeline activities={activities} />
                 </div>
-                <div className="space-y-8">
+                <div className="space-y-6">
                     <QuickAdd onActivityAdded={handleActivityAdded} />
 
                     {/* GitHub Connect Card */}
-                    <div className="glass-card p-6 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl rounded-full -mr-10 -mt-10"></div>
-                        <div className="relative z-10">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold text-white flex items-center">
-                                    <Github className="w-5 h-5 mr-2" />
-                                    GitHub Sync
-                                </h3>
-                                {githubConnected && <CheckCircle className="w-5 h-5 text-green-400" />}
-                            </div>
-
-                            {githubConnected ? (
-                                <div>
-                                    <p className="text-sm text-slate-400 mb-4">
-                                        Your GitHub account is connected.
-                                    </p>
-
-                                    <div className="space-y-3 mb-4">
-                                        {githubActivity.slice(0, 3).map((event: any) => (
-                                            <div key={event.id} className="text-xs bg-white/5 p-2 rounded border border-white/5">
-                                                <div className="flex justify-between text-slate-500 mb-1">
-                                                    <span>{event.repo}</span>
-                                                    <span>{new Date(event.createdAt).toLocaleDateString()}</span>
-                                                </div>
-                                                <div className="text-slate-300 truncate">
-                                                    {event.type === 'PushEvent' ? `Pushed ${event.payload.size} commits` : event.type}
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {githubActivity.length === 0 && (
-                                            <p className="text-xs text-slate-500 italic">No recent activity found.</p>
-                                        )}
-                                    </div>
-
-                                    <div className="flex items-center space-x-2 text-xs text-green-400 bg-green-400/10 px-3 py-2 rounded-lg border border-green-400/20">
-                                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                                        <span>Sync Active</span>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div>
-                                    <p className="text-sm text-slate-400 mb-4">
-                                        Connect GitHub to track your coding activity and streaks.
-                                    </p>
-                                    <button
-                                        onClick={handleGithubConnect}
-                                        disabled={githubLoading}
-                                        className="w-full py-2.5 rounded-xl bg-white text-slate-900 font-semibold hover:bg-slate-200 transition-colors flex items-center justify-center space-x-2"
-                                    >
-                                        {githubLoading ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                            <Github className="w-4 h-4" />
-                                        )}
-                                        <span>{githubLoading ? 'Connecting...' : 'Connect GitHub'}</span>
-                                    </button>
-                                </div>
-                            )}
+                    <div className="card-minimal p-6 relative group">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-sm font-bold text-foreground flex items-center tracking-wide">
+                                <Github className="w-4 h-4 mr-2 text-muted-foreground" />
+                                GITHUB SYNC
+                            </h3>
+                            {githubConnected && <CheckCircle className="w-4 h-4 text-emerald-500" />}
                         </div>
+
+                        {githubConnected ? (
+                            <div>
+                                <p className="text-sm text-muted-foreground mb-6">
+                                    Connected as <span className="text-foreground font-medium">{user?.integrations?.github?.username}</span>
+                                </p>
+
+                                <div className="space-y-2 mb-6">
+                                    {githubActivity.slice(0, 3).map((event: any) => (
+                                        <div key={event.id} className="text-xs p-3 rounded bg-muted/50 border border-border flex justify-between items-start">
+                                            <div>
+                                                <div className="text-foreground font-medium mb-1">
+                                                    {event.type === 'PushEvent' ? 'Pushed commits' : event.type}
+                                                </div>
+                                                <div className="text-muted-foreground">{event.repo}</div>
+                                            </div>
+                                            <span className="text-muted-foreground font-mono">{new Date(event.createdAt).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })}</span>
+                                        </div>
+                                    ))}
+                                    {githubActivity.length === 0 && (
+                                        <div className="text-center py-4 bg-muted/50 rounded border border-border border-dashed">
+                                            <p className="text-xs text-muted-foreground">No recent activity detected.</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center space-x-2 text-xs text-emerald-500 bg-emerald-500/10 px-3 py-2 rounded border border-emerald-500/20 justify-center">
+                                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                                    <span className="font-medium tracking-wide uppercase">Sync Active</span>
+                                </div>
+                            </div>
+                        ) : (
+                            <div>
+                                <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+                                    Link your GitHub to automatically track coding streaks and contribution activity.
+                                </p>
+                                <button
+                                    onClick={handleGithubConnect}
+                                    disabled={githubLoading}
+                                    className="w-full py-2.5 rounded-lg bg-foreground text-background text-sm font-bold hover:opacity-90 transition-colors flex items-center justify-center space-x-2 shadow-sm"
+                                >
+                                    {githubLoading ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Github className="w-4 h-4" />
+                                    )}
+                                    <span>{githubLoading ? 'CONNECTING...' : 'CONNECT GITHUB'}</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

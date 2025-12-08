@@ -81,7 +81,8 @@ async function fetchClassification(domain, title) {
 
 async function determineCategory(domain, title) {
     // 0. Check User's Custom Map (Highest Priority)
-    if (customDomainMap[domain]) {
+    // SKIP for YouTube to allow title-based detection (otherwise one Timepass classification locks the whole domain)
+    if (customDomainMap[domain] && !domain.includes('youtube')) {
         return customDomainMap[domain];
     }
 
@@ -103,11 +104,23 @@ async function determineCategory(domain, title) {
     if (mappedCategory) return mappedCategory;
 
     // 2. Universal Keyword Check
-    if (LEARN_KEYWORDS.some(k => lowerTitle.includes(k))) return 'learn';
+    // Added more variations for better detection
+    const EXTENDED_LEARN_KEYWORDS = [
+        ...LEARN_KEYWORDS,
+        'explained', 'course', 'full course', 'crash course', 'roadmap',
+        'devops', 'ci/cd', 'pipeline', 'deployment', 'hosting', 'server', 'cloud', 'aws', 'azure', 'docker', 'kubernetes',
+        'intro', 'introduction', 'basics', 'advanced', 'beginner', 'mastery',
+        'install', 'setup', 'environment', 'configuration', 'config',
+        'career', 'salary', 'job', 'interview', 'resume', 'portfolio',
+        'system design', 'architecture', 'backend', 'frontend', 'ui/ux', 'figma'
+    ];
+
+    if (EXTENDED_LEARN_KEYWORDS.some(k => lowerTitle.includes(k))) return 'learn';
     if (TIMEPASS_KEYWORDS.some(k => lowerTitle.includes(k))) return 'timepass';
 
     // 3. AI Classification (Fallback for unknown sites)
-    if (!domain.includes('youtube') && !domain.includes('google')) {
+    // HYBRID MODE: If keywords failed, ask Gemini (Now enabled for YouTube too)
+    if (!domain.includes('google')) {
         console.log(`Asking Gemini about: ${domain}`);
         const aiCategory = await fetchClassification(domain, title);
 
@@ -194,9 +207,19 @@ async function handleTabChange(tab) {
         await stopTracking();
         await startTracking(tab.id, domain, title);
     } else if (trackingState) {
-        // Same domain - just update the title in case it changed
-        trackingState.title = title;
-        await chrome.storage.local.set({ trackingState });
+        // Same domain - check if category needs to change based on new title
+        // This is crucial for YouTube where title changes from "YouTube" (Timepass) -> "React Tutorial" (Learn)
+        const newCategory = await determineCategory(domain, title);
+
+        if (newCategory !== trackingState.currentType) {
+            console.log(`Category changed from ${trackingState.currentType} to ${newCategory} due to title change`);
+            await stopTracking();
+            await startTracking(tab.id, domain, title);
+        } else {
+            // Same domain and category - just update the title
+            trackingState.title = title;
+            await chrome.storage.local.set({ trackingState });
+        }
     }
 }
 

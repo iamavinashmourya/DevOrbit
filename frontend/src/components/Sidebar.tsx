@@ -1,70 +1,86 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Upload, BarChart2, LogOut, Zap } from 'lucide-react';
+import { LayoutDashboard, Upload, BarChart2, LogOut, Zap, BookOpen, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+    isOpen?: boolean;
+    onClose?: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     const location = useLocation();
     const { logout } = useAuth();
 
     const isActive = (path: string) => location.pathname === path;
 
     const navItems = [
-        { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+        { path: '/', label: 'Overview', icon: LayoutDashboard },
         { path: '/import', label: 'Import Data', icon: Upload },
         { path: '/reports', label: 'Reports', icon: BarChart2 },
         { path: '/profile', label: 'Profile', icon: Zap },
     ];
 
-    return (
-        <div className="h-screen w-72 fixed left-0 top-0 z-50 p-4">
-            <div className="h-full glass-panel rounded-3xl flex flex-col overflow-hidden relative">
-                {/* Glow effect */}
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
+    // Mobile classes: Fixed, transform-based animation
+    // Desktop classes: Fixed, always visible (handled by md:flex)
+    const containerClasses = `
+        fixed inset-y-0 left-0 z-50 w-64 bg-background border-r border-border transition-transform duration-300 ease-in-out md:translate-x-0 flex flex-col
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+    `;
 
-                <div className="p-8">
-                    <div className="flex items-center space-x-3 mb-8">
-                        <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-2 rounded-lg shadow-lg shadow-cyan-500/20">
-                            <Zap className="text-white w-6 h-6" />
+    return (
+        <div className={containerClasses}>
+            <div className="p-6">
+                <div className="flex items-center justify-between mb-10 pl-2">
+                    <div className="flex items-center space-x-3">
+                        <div className="bg-primary rounded-lg p-1.5 shadow-sm">
+                            <BookOpen className="text-primary-foreground w-5 h-5" />
                         </div>
-                        <h1 className="text-2xl font-bold tracking-tight text-white">
-                            Study<span className="text-cyan-400">Track</span>
+                        <h1 className="text-xl font-bold tracking-tight text-foreground">
+                            StudyTrack
                         </h1>
                     </div>
-
-                    <nav className="space-y-2">
-                        {navItems.map((item) => {
-                            const Icon = item.icon;
-                            const active = isActive(item.path);
-                            return (
-                                <Link
-                                    key={item.path}
-                                    to={item.path}
-                                    className={`flex items-center space-x-3 px-4 py-3.5 rounded-xl transition-all duration-300 group relative overflow-hidden ${active
-                                        ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_15px_-3px_rgba(6,182,212,0.15)]'
-                                        : 'text-slate-400 hover:text-slate-100 hover:bg-white/5'
-                                        }`}
-                                >
-                                    {active && (
-                                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500 rounded-r-full shadow-[0_0_10px_2px_rgba(6,182,212,0.5)]"></div>
-                                    )}
-                                    <Icon className={`w-5 h-5 transition-colors ${active ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                                    <span className="font-medium">{item.label}</span>
-                                </Link>
-                            );
-                        })}
-                    </nav>
-                </div>
-
-                <div className="mt-auto p-6 border-t border-white/5 bg-black/20">
                     <button
-                        onClick={logout}
-                        className="flex items-center space-x-3 px-4 py-3 w-full rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all group"
+                        onClick={onClose}
+                        className="md:hidden p-1 text-muted-foreground hover:text-foreground"
                     >
-                        <LogOut className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                        <span className="font-medium">Logout</span>
+                        <X className="w-5 h-5" />
                     </button>
                 </div>
+
+                <nav className="space-y-1">
+                    {navItems.map((item) => {
+                        const Icon = item.icon;
+                        const active = isActive(item.path);
+                        return (
+                            <Link
+                                key={item.path}
+                                to={item.path}
+                                onClick={() => onClose && onClose()}
+                                className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 group ${active
+                                    ? 'bg-secondary text-secondary-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                                    }`}
+                            >
+                                <Icon className={`w-4 h-4 transition-colors ${active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}`} />
+                                <span className={`text-sm font-medium ${active ? 'text-foreground' : ''}`}>{item.label}</span>
+                                {active && (
+                                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary"></div>
+                                )}
+                            </Link>
+                        );
+                    })}
+                </nav>
+            </div>
+
+            <div className="mt-auto p-4 border-t border-border">
+                <button
+                    onClick={logout}
+                    className="flex items-center space-x-3 px-3 py-2 w-full rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors group"
+                >
+                    <LogOut className="w-4 h-4" />
+                    <span className="text-sm font-medium">Logout</span>
+                </button>
             </div>
         </div>
     );

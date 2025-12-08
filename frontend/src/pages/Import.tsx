@@ -40,22 +40,22 @@ const Import: React.FC = () => {
     };
 
     return (
-        <div className="max-w-2xl mx-auto space-y-8">
+        <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-500">
             <header className="text-center">
-                <h1 className="text-3xl font-bold text-white tracking-tight">Import Data</h1>
-                <p className="text-slate-400 mt-2">Upload your YouTube history to track past activity.</p>
+                <h1 className="text-3xl font-bold text-foreground tracking-tight">Import Data</h1>
+                <p className="text-muted-foreground mt-2">Upload your YouTube history to track past activity.</p>
             </header>
 
-            <div className="glass-panel p-8 rounded-3xl border-dashed border-2 border-slate-700 hover:border-cyan-500/50 transition-colors duration-300 text-center relative overflow-hidden group">
-                <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <div className="card-minimal p-8 border-dashed border-2 border-border hover:border-primary/50 transition-colors duration-300 text-center relative overflow-hidden group">
+                <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
                 <div className="relative z-10">
-                    <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-black/20 group-hover:scale-110 transition-transform duration-300">
-                        <Upload className="w-10 h-10 text-cyan-400" />
+                    <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                        <Upload className="w-10 h-10 text-primary" />
                     </div>
 
-                    <h3 className="text-xl font-semibold text-white mb-2">Upload JSON File</h3>
-                    <p className="text-slate-400 mb-8 max-w-sm mx-auto">
+                    <h3 className="text-xl font-semibold text-foreground mb-2">Upload JSON File</h3>
+                    <p className="text-muted-foreground mb-8 max-w-sm mx-auto">
                         Drag and drop your Google Takeout JSON file here, or click to browse.
                     </p>
 
@@ -69,7 +69,7 @@ const Import: React.FC = () => {
 
                     <label
                         htmlFor="file-upload"
-                        className="inline-flex items-center px-6 py-3 rounded-xl bg-slate-800 text-cyan-400 font-medium cursor-pointer hover:bg-slate-700 hover:text-cyan-300 transition-all border border-slate-700 hover:border-cyan-500/30"
+                        className="inline-flex items-center px-6 py-3 rounded-xl bg-muted text-primary font-medium cursor-pointer hover:bg-muted/80 hover:text-primary transition-all border border-border hover:border-primary/30"
                     >
                         <FileJson className="w-5 h-5 mr-2" />
                         {file ? file.name : 'Select File'}
@@ -101,18 +101,18 @@ const Import: React.FC = () => {
 
             {message && (
                 <div className={`p-4 rounded-xl flex items-center space-x-3 ${message.type === 'success'
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                    : 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20'
                     }`}>
                     {message.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
                     <span className="font-medium">{message.text}</span>
                 </div>
             )}
 
-            <div className="glass-panel p-6 rounded-2xl">
-                <h3 className="text-lg font-bold text-white mb-4">Instructions</h3>
-                <ol className="list-decimal list-inside space-y-2 text-slate-400 text-sm">
-                    <li>Go to <a href="#" className="text-cyan-400 hover:underline">Google Takeout</a>.</li>
+            <div className="card-minimal p-6">
+                <h3 className="text-lg font-bold text-foreground mb-4">Instructions</h3>
+                <ol className="list-decimal list-inside space-y-2 text-muted-foreground text-sm">
+                    <li>Go to <a href="#" className="text-primary hover:underline">Google Takeout</a>.</li>
                     <li>Deselect all, then select only <strong>YouTube and YouTube Music</strong>.</li>
                     <li>Choose "history" format as JSON.</li>
                     <li>Download and extract the zip file.</li>

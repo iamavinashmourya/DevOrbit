@@ -41,20 +41,18 @@ const QuickAdd: React.FC<QuickAddProps> = ({ onActivityAdded }) => {
     };
 
     return (
-        <div className="glass-panel p-6 rounded-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 blur-3xl rounded-full -mr-10 -mt-10"></div>
-
-            <h2 className="text-xl font-bold text-white mb-6 flex items-center relative z-10">
-                <Zap className="w-5 h-5 mr-2 text-yellow-400" />
-                Quick Log
+        <div className="card-minimal p-6">
+            <h2 className="text-sm font-bold text-foreground mb-6 flex items-center tracking-wide">
+                <Zap className="w-4 h-4 mr-2 text-yellow-500" />
+                QUICK LOG
             </h2>
 
-            <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
+            <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">Type</label>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wider">Type</label>
                     <div className="relative">
                         <select
-                            className="w-full input-futuristic appearance-none cursor-pointer"
+                            className="w-full input-minimal appearance-none cursor-pointer"
                             value={type}
                             onChange={(e) => setType(e.target.value)}
                         >
@@ -64,17 +62,17 @@ const QuickAdd: React.FC<QuickAddProps> = ({ onActivityAdded }) => {
                             <option value="assignment">Assignment</option>
                             <option value="timepass">Timepass</option>
                         </select>
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground text-xs">
                             ▼
                         </div>
                     </div>
                 </div>
 
                 <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">Activity</label>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wider">Activity</label>
                     <input
                         type="text"
-                        className="w-full input-futuristic"
+                        className="w-full input-minimal"
                         placeholder="What are you working on?"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
@@ -82,23 +80,25 @@ const QuickAdd: React.FC<QuickAddProps> = ({ onActivityAdded }) => {
                     />
                 </div>
 
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full btn-primary flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed group"
-                >
-                    {loading ? (
-                        <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            <span>Logging...</span>
-                        </>
-                    ) : (
-                        <>
-                            <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-                            <span>Log Activity</span>
-                        </>
-                    )}
-                </button>
+                <div className="pt-2">
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full btn-primary flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed group"
+                    >
+                        {loading ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Logging...</span>
+                            </>
+                        ) : (
+                            <>
+                                <Plus className="w-4 h-4" />
+                                <span>Log Activity</span>
+                            </>
+                        )}
+                    </button>
+                </div>
             </form>
         </div>
     );

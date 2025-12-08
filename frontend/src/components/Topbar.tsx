@@ -1,42 +1,60 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Bell, Search, Command } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+import { Bell, Search, Command, Sun, Moon, Menu } from 'lucide-react';
 
-const Topbar: React.FC = () => {
+interface TopbarProps {
+    onMenuClick?: () => void;
+}
+
+const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
     const { user } = useAuth();
+    const { theme, toggleTheme } = useTheme();
 
     return (
-        <div className="h-24 fixed top-0 right-0 left-72 z-40 flex items-center justify-between px-8 pointer-events-none">
-            <div className="pointer-events-auto w-full max-w-xl">
-                <div className="glass-card rounded-2xl px-4 py-2.5 flex items-center space-x-3 text-slate-400 focus-within:text-cyan-400 focus-within:border-cyan-500/30 transition-all">
-                    <Search className="w-4 h-4" />
+        <div className="h-16 border-b border-border bg-background flex items-center justify-between px-4 md:px-8 sticky top-0 z-40 transition-colors duration-300">
+            <div className="flex items-center w-full md:max-w-md gap-4">
+                <button
+                    onClick={onMenuClick}
+                    className="md:hidden p-2 -ml-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                >
+                    <Menu className="w-5 h-5" />
+                </button>
+
+                <div className="relative group flex-1 md:flex-none">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <input
                         type="text"
-                        placeholder="Search activities..."
-                        className="bg-transparent border-none focus:outline-none text-sm w-full text-slate-200 placeholder:text-slate-600"
+                        placeholder="Search..."
+                        className="w-full bg-muted/50 border border-input text-sm text-foreground rounded-lg pl-10 pr-12 py-2 focus:border-ring focus:ring-1 focus:ring-ring outline-none transition-all placeholder:text-muted-foreground"
                     />
-                    <div className="flex items-center space-x-1 px-2 py-1 bg-white/5 rounded text-xs font-mono border border-white/5">
-                        <Command className="w-3 h-3" />
-                        <span>K</span>
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 hidden md:flex items-center px-1.5 py-0.5 rounded border border-border bg-muted">
+                        <Command className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-[10px] text-muted-foreground font-mono ml-1">K</span>
                     </div>
                 </div>
             </div>
 
-            <div className="pointer-events-auto flex items-center space-x-6 pl-8">
-                <button className="relative p-3 rounded-xl hover:bg-white/5 text-slate-400 hover:text-cyan-400 transition-colors group">
-                    <Bell className="w-5 h-5 group-hover:animate-pulse" />
-                    <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-cyan-500 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.6)]"></span>
+            <div className="flex items-center space-x-2 md:space-x-4">
+                <button
+                    onClick={toggleTheme}
+                    className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                >
+                    {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </button>
 
-                <div className="flex items-center space-x-4 pl-6 border-l border-white/10">
+                <button className="relative p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors hidden md:block">
+                    <Bell className="w-5 h-5" />
+                    <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-background"></span>
+                </button>
+
+                <div className="flex items-center space-x-3 pl-4 border-l border-border ml-2">
                     <div className="text-right hidden md:block">
-                        <p className="text-sm font-semibold text-slate-200">{user?.name}</p>
-                        <p className="text-xs text-cyan-500/80">Pro Member</p>
+                        <p className="text-sm font-medium text-foreground">{user?.name}</p>
+                        <p className="text-xs text-muted-foreground">Student</p>
                     </div>
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 p-[2px] shadow-lg shadow-cyan-500/20">
-                        <div className="w-full h-full rounded-[10px] bg-slate-900 flex items-center justify-center">
-                            <span className="text-white font-bold text-sm">{user?.name?.charAt(0).toUpperCase()}</span>
-                        </div>
+                    <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-muted flex items-center justify-center border border-border">
+                        <span className="text-muted-foreground font-bold text-sm">{user?.name?.charAt(0).toUpperCase()}</span>
                     </div>
                 </div>
             </div>

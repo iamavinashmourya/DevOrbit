@@ -28,32 +28,30 @@ const Profile: React.FC = () => {
     }, [user]);
 
     if (loading) {
-        return <div className="text-white">Loading profile...</div>;
+        return <div className="text-muted-foreground flex justify-center py-8">Loading profile...</div>;
     }
 
     if (!profileData) {
-        return <div className="text-white">Failed to load profile.</div>;
+        return <div className="text-muted-foreground flex justify-center py-8">Failed to load profile.</div>;
     }
 
     const { stats, recentTasks, user: userInfo } = profileData;
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-in fade-in duration-500">
             {/* Header Section */}
-            <div className="glass-panel p-8 rounded-3xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 blur-3xl rounded-full -mr-20 -mt-20"></div>
-
+            <div className="card-minimal p-8 relative overflow-hidden">
                 <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                     <div className="flex items-center space-x-6">
-                        <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-4xl font-bold text-white shadow-lg shadow-cyan-500/20">
+                        <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-4xl font-bold text-primary-foreground shadow-lg shadow-primary/20">
                             {userInfo.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold text-white mb-2">{userInfo.name}</h1>
-                            <div className="flex items-center space-x-4 text-slate-400 text-sm">
+                            <h1 className="text-3xl font-bold text-foreground mb-2">{userInfo.name}</h1>
+                            <div className="flex items-center space-x-4 text-muted-foreground text-sm">
                                 <span className="flex items-center"><Calendar className="w-4 h-4 mr-1" /> Joined {new Date(userInfo.joinedAt).toLocaleDateString()}</span>
                                 {userInfo.integrations?.github?.username && (
-                                    <span className="flex items-center text-cyan-400 bg-cyan-400/10 px-2 py-0.5 rounded border border-cyan-400/20">
+                                    <span className="flex items-center text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
                                         <Github className="w-3 h-3 mr-1" /> {userInfo.integrations.github.username}
                                     </span>
                                 )}
@@ -62,16 +60,16 @@ const Profile: React.FC = () => {
                     </div>
 
                     <div className="flex space-x-4">
-                        <div className="glass-card px-6 py-4 rounded-2xl text-center min-w-[120px]">
-                            <div className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Current Streak</div>
-                            <div className="text-3xl font-bold text-white flex items-center justify-center">
-                                <Flame className={`w-6 h-6 mr-2 ${stats.currentStreak > 0 ? 'text-orange-500 fill-orange-500' : 'text-slate-600'}`} />
+                        <div className="bg-muted px-6 py-4 rounded-2xl text-center min-w-[120px] border border-border">
+                            <div className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-1">Current Streak</div>
+                            <div className="text-3xl font-bold text-foreground flex items-center justify-center">
+                                <Flame className={`w-6 h-6 mr-2 ${stats.currentStreak > 0 ? 'text-orange-500 fill-orange-500' : 'text-muted-foreground'}`} />
                                 {stats.currentStreak}
                             </div>
                         </div>
-                        <div className="glass-card px-6 py-4 rounded-2xl text-center min-w-[120px]">
-                            <div className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Longest Streak</div>
-                            <div className="text-3xl font-bold text-white flex items-center justify-center">
+                        <div className="bg-muted px-6 py-4 rounded-2xl text-center min-w-[120px] border border-border">
+                            <div className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-1">Longest Streak</div>
+                            <div className="text-3xl font-bold text-foreground flex items-center justify-center">
                                 <Trophy className="w-6 h-6 mr-2 text-yellow-500" />
                                 {stats.longestStreak}
                             </div>
@@ -81,13 +79,13 @@ const Profile: React.FC = () => {
             </div>
 
             {/* Monthly Activity Section */}
-            <div className="glass-panel p-8 rounded-3xl">
+            <div className="card-minimal p-8">
                 <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-white flex items-center">
-                        <Calendar className="w-5 h-5 mr-3 text-cyan-400" />
+                    <h2 className="text-xl font-bold text-foreground flex items-center">
+                        <Calendar className="w-5 h-5 mr-3 text-primary" />
                         Monthly Activity
                     </h2>
-                    <div className="text-slate-400 text-sm font-medium">
+                    <div className="text-muted-foreground text-sm font-medium">
                         {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
                     </div>
                 </div>
@@ -95,7 +93,7 @@ const Profile: React.FC = () => {
                 {/* Calendar Grid */}
                 <div className="grid grid-cols-7 gap-2 mb-2">
                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                        <div key={day} className="text-center text-xs text-slate-500 font-medium py-2">
+                        <div key={day} className="text-center text-xs text-muted-foreground font-medium py-2">
                             {day}
                         </div>
                     ))}
@@ -126,18 +124,19 @@ const Profile: React.FC = () => {
                             const count = stats.heatmap[dateStr] || 0;
                             const isToday = day === today.getDate();
 
-                            let bgClass = 'bg-white/5 hover:bg-white/10';
-                            let textClass = 'text-slate-400';
+                            let bgClass = 'bg-muted hover:bg-zinc-200 dark:hover:bg-zinc-800';
+                            let textClass = 'text-muted-foreground';
 
+                            // Logic for heatmap coloring - adapts to Primary color
                             if (count > 0) {
-                                bgClass = 'bg-cyan-900/40 border border-cyan-500/30';
-                                textClass = 'text-cyan-100';
+                                bgClass = 'bg-primary/40 border border-primary/30';
+                                textClass = 'text-primary-foreground';
                             }
-                            if (count > 2) bgClass = 'bg-cyan-700/60 border border-cyan-400/50';
-                            if (count > 5) bgClass = 'bg-cyan-500 border border-cyan-300/50';
+                            if (count > 2) bgClass = 'bg-primary/60 border border-primary/50';
+                            if (count > 5) bgClass = 'bg-primary/80 border border-primary/60';
 
                             if (isToday) {
-                                bgClass += ' ring-2 ring-cyan-400 ring-offset-2 ring-offset-black';
+                                bgClass += ' ring-2 ring-primary ring-offset-2 ring-offset-background';
                             }
 
                             calendarCells.push(
@@ -150,7 +149,7 @@ const Profile: React.FC = () => {
                                     {count > 0 && (
                                         <div className="mt-1 flex gap-0.5">
                                             {[...Array(Math.min(count, 3))].map((_, i) => (
-                                                <div key={i} className="w-1 h-1 rounded-full bg-cyan-300"></div>
+                                                <div key={i} className="w-1 h-1 rounded-full bg-primary-foreground/50"></div>
                                             ))}
                                         </div>
                                     )}
@@ -164,34 +163,34 @@ const Profile: React.FC = () => {
             </div>
 
             {/* Recent Tasks */}
-            <div className="glass-panel p-8 rounded-3xl">
-                <h2 className="text-xl font-bold text-white mb-6 flex items-center">
+            <div className="card-minimal p-8">
+                <h2 className="text-xl font-bold text-foreground mb-6 flex items-center">
                     <Zap className="w-5 h-5 mr-3 text-yellow-400" />
                     Recent Tasks
                 </h2>
 
                 <div className="space-y-4">
                     {recentTasks.length === 0 ? (
-                        <p className="text-slate-500 italic">No activities recorded today.</p>
+                        <p className="text-muted-foreground italic">No activities recorded today.</p>
                     ) : (
                         recentTasks.map((task: any) => (
-                            <div key={task._id} className="flex items-center justify-between p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors border border-white/5 group">
+                            <div key={task._id} className="flex items-center justify-between p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors border border-border group">
                                 <div className="flex items-center space-x-4">
-                                    <div className={`p-2 rounded-lg ${task.type === 'learn' ? 'bg-blue-500/20 text-blue-400' :
-                                            task.type === 'dsa' ? 'bg-green-500/20 text-green-400' :
-                                                task.type === 'project' ? 'bg-purple-500/20 text-purple-400' :
-                                                    'bg-slate-500/20 text-slate-400'
+                                    <div className={`p-2 rounded-lg ${task.type === 'learn' ? 'bg-blue-500/10 text-blue-500' :
+                                        task.type === 'dsa' ? 'bg-green-500/10 text-green-500' :
+                                            task.type === 'project' ? 'bg-purple-500/10 text-purple-500' :
+                                                'bg-muted text-muted-foreground'
                                         }`}>
                                         <Clock className="w-5 h-5" />
                                     </div>
                                     <div>
-                                        <h3 className="text-white font-medium">{task.title || 'Untitled Activity'}</h3>
-                                        <p className="text-xs text-slate-400 uppercase tracking-wider mt-0.5">{task.type}</p>
+                                        <h3 className="text-foreground font-medium">{task.title || 'Untitled Activity'}</h3>
+                                        <p className="text-xs text-muted-foreground uppercase tracking-wider mt-0.5">{task.type}</p>
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-white font-mono font-medium">{task.durationMinutes}m</div>
-                                    <div className="text-xs text-slate-500">{new Date(task.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                    <div className="text-foreground font-mono font-medium">{task.durationMinutes}m</div>
+                                    <div className="text-xs text-muted-foreground">{new Date(task.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                                 </div>
                             </div>
                         ))

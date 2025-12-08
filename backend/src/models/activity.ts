@@ -15,6 +15,12 @@ export interface IActivity extends Document {
     startTime: Date;
     endTime: Date;
     durationMinutes: number;
+    history?: {
+        title: string;
+        url?: string;
+        timestamp: Date;
+        duration?: number;
+    }[];
     createdAt: Date;
 }
 
@@ -41,6 +47,12 @@ const ActivitySchema: Schema = new Schema({
     startTime: { type: Date, required: true },
     endTime: { type: Date },
     durationMinutes: { type: Number },
+    history: [{
+        title: String,
+        url: String,
+        timestamp: Date,
+        duration: { type: Number, default: 0 }
+    }],
     createdAt: { type: Date, default: Date.now },
 });
 

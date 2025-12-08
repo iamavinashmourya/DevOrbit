@@ -124,6 +124,28 @@ async function determineCategory(domain, title) {
     return 'app_usage';
 }
 
+// ALARM LISTENER (Heartbeat for Real-time Tracking)
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+    if (alarm.name === 'trackingHeartbeat') {
+        const { trackingState } = await chrome.storage.local.get(['trackingState']);
+        if (trackingState && trackingState.domain) {
+            const now = Date.now();
+            const lastSync = trackingState.lastSyncTime || trackingState.startTime;
+            const duration = now - lastSync;
+
+            // Update every minute (approx)
+            if (duration > 5000) { // Save if > 5s passed since last sync
+                console.log(`Heartbeat: Saving ${duration}ms for ${trackingState.domain}`);
+                await saveActivity(trackingState.domain, trackingState.title, lastSync, now, trackingState.currentType);
+
+                // Update lastSyncTime
+                trackingState.lastSyncTime = now;
+                await chrome.storage.local.set({ trackingState });
+            }
+        }
+    }
+});
+
 // Listen for tab activation
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
     const tab = await chrome.tabs.get(activeInfo.tabId);
@@ -179,18 +201,23 @@ async function handleTabChange(tab) {
 }
 
 async function startTracking(tabId, domain, title) {
-    const startTime = Date.now();
+    const now = Date.now();
     const initialType = await determineCategory(domain, title);
 
     const newState = {
         tabId,
         domain,
         title,
-        startTime,
+        startTime: now,
+        lastSyncTime: now, // Initialize sync time
         currentType: initialType
     };
 
     await chrome.storage.local.set({ trackingState: newState });
+
+    // Create/Reset Heartbeat Alarm (1 minute)
+    chrome.alarms.create('trackingHeartbeat', { periodInMinutes: 1 });
+
     console.log(`Started tracking: ${domain} (${title}) as ${initialType}`);
 }
 
@@ -198,14 +225,20 @@ async function stopTracking() {
     const { trackingState } = await chrome.storage.local.get(['trackingState']);
 
     if (trackingState && trackingState.domain && trackingState.startTime) {
-        const endTime = Date.now();
-        const duration = endTime - trackingState.startTime;
+        // Stop Alarm
+        chrome.alarms.clear('trackingHeartbeat');
 
-        if (duration > 10000) { // Track if > 10 seconds
-            console.log(`Stopped tracking: ${trackingState.domain}, duration: ${duration}ms`);
-            await saveActivity(trackingState.domain, trackingState.title, trackingState.startTime, endTime, trackingState.currentType);
+        const now = Date.now();
+        const lastSync = trackingState.lastSyncTime || trackingState.startTime;
+        const totalDuration = now - trackingState.startTime;
+        const deltaDuration = now - lastSync;
+
+        // Save if total session was valid (>10s) AND there is unsaved time (>2s)
+        if (totalDuration > 10000 && deltaDuration > 2000) {
+            console.log(`Stopped tracking: ${trackingState.domain}, final delta: ${deltaDuration}ms`);
+            await saveActivity(trackingState.domain, trackingState.title, lastSync, now, trackingState.currentType);
         } else {
-            console.log(`Ignored short session: ${trackingState.domain}, duration: ${duration}ms`);
+            console.log(`Ended session: ${trackingState.domain}`);
         }
 
         // Clear state

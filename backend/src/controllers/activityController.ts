@@ -33,44 +33,102 @@ export const getActivities = async (req: Request, res: Response) => {
 
 export const createActivity = async (req: Request, res: Response) => {
     try {
-        const { type, title, startTime, endTime, metadata, source } = req.body;
+        const { type, title, url, durationMinutes, source, metadata } = req.body;
 
-        let durationMinutes = 0;
-        let finalEndTime = endTime;
-
-        if (!endTime) {
-            finalEndTime = new Date();
+        // --- GLOBAL IGNORE LIST ---
+        if (!title || title === 'New Tab' || title === 'New Tab Page' || title.includes("Windows Start Experience Host") || title.includes("Control Panel")) {
+            return res.status(200).json({ message: 'Ignored: System/Empty page' });
         }
 
-        if (startTime && finalEndTime) {
-            const start = new Date(startTime).getTime();
-            const end = new Date(finalEndTime).getTime();
-            durationMinutes = Math.ceil((end - start) / 60000);
+        // --- DESKTOP TITLE SANITIZATION ---
+        // If Desktop App reports a browser, just use the App Name (e.g. "Google Chrome") to avoid "New Tab" spam
+        // and keep it clean (as per user request).
+        let finalTitle = title;
+        if (source === 'desktop_app' && metadata?.package) {
+            const browserNames = ['chrome', 'brave', 'edge', 'firefox', 'opera', 'vivaldi', 'arc', 'browser'];
+            if (browserNames.some(b => metadata.package.toLowerCase().includes(b))) {
+                finalTitle = metadata.package; // Overwrite "Google Chrome - New Tab" -> "Google Chrome"
+            }
         }
 
-        // Get start and end of today (user's timezone)
-        const activityDate = new Date(startTime);
         const startOfDay = new Date(activityDate);
         startOfDay.setHours(0, 0, 0, 0);
+
         const endOfDay = new Date(activityDate);
         endOfDay.setHours(23, 59, 59, 999);
 
+        // --- DEDUPLICATION LOGIC ---
+        // If this is a DESKTOP ping for a Browser, check if the Extension is already tracking it.
+        // If Extension is active, we IGNORE this desktop ping to avoid double counting.
+        if (source === 'desktop_app' && metadata?.package) {
+            const browserNames = ['chrome', 'brave', 'edge', 'firefox', 'opera', 'vivaldi', 'arc', 'browser'];
+            const isBrowser = browserNames.some(b => metadata.package.toLowerCase().includes(b));
+
+            if (isBrowser) {
+                // Check for RECENT (last 1 min) extension activity
+                // If the user just switched from Chrome (Ext) to Edge (No Ext), we want Edge to pick up quickly.
+                const oneAgo = new Date(Date.now() - 1 * 60 * 1000);
+                const activeExtension = await Activity.findOne({
+                    userId: req.user._id,
+                    source: 'browser_extension',
+                    updatedAt: { $gte: oneAgo } // Very recent update
+                });
+
+                if (activeExtension) {
+                    console.log(`[Activity] Ignored Desktop ping for ${metadata.package} (Extension is active)`);
+                    return res.status(200).json({ message: 'Ignored: Extension handling this' });
+                }
+            }
+        }
+
+        // ** AI Classification for Desktop App & Browser **
+        let finalType = type;
+        if ((source === 'desktop_app' || source === 'browser_extension') && finalType === 'app_usage' && finalTitle) {
+            try {
+                // Dynamic import to avoid cycles/loading issues
+                // const { getAICategory } = await import('./aiController'); 
+                // Using require to ensure it works synchronously if needed, but import is fine in async func
+                const { getAICategory } = await import('./aiController');
+                const context = metadata?.package || metadata?.url || metadata?.domain || ''; // Use package or URL
+                console.log(`[Activity] AI Classifying: ${finalTitle} (${context})`);
+
+                const aiCategory = await getAICategory(finalTitle, context);
+                if (aiCategory && aiCategory !== 'app_usage') {
+                    finalType = aiCategory as any;
+                    console.log(`[Activity] Classified as: ${finalType}`);
+                }
+            } catch (err) {
+                console.error('[Activity] AI Classification Failed:', err);
+            }
+        }
+
         // Check if there's already an activity for this domain/type today
         const domain = metadata?.domain;
+        const pkg = metadata?.package;
 
-        console.log(`[Activity] Checking for existing: domain=${domain}, type=${type}, title=${title}`);
+        console.log(`[Activity] Checking for existing: domain=${domain}, pkg=${pkg}, type=${finalType}, title=${title}`);
 
-        const existingActivity = await Activity.findOne({
+        const query: any = {
             userId: req.user._id,
-            'metadata.domain': domain,
-            type: type, // Match on type instead of exact title
+            type: finalType, // Match on FINAL Type
             startTime: {
                 $gte: startOfDay,
                 $lte: endOfDay
             }
-        }).sort({ startTime: -1 }); // Get the most recent one
+        };
 
-        if (existingActivity && domain) {
+        if (domain) {
+            query['metadata.domain'] = domain;
+        } else if (pkg) {
+            query['metadata.package'] = pkg;
+        } else {
+            // Fallback: match by title if no domain/package (e.g. manual entry)
+            query['title'] = title;
+        }
+
+        const existingActivity = await Activity.findOne(query).sort({ startTime: -1 }); // Get the most recent one
+
+        if (existingActivity) {
             console.log(`[Activity] MERGING with existing activity ID: ${existingActivity._id}`);
 
             // Merge: Add duration to existing activity
@@ -124,7 +182,7 @@ export const createActivity = async (req: Request, res: Response) => {
             // Create new activity
             const activity = new Activity({
                 userId: req.user._id,
-                type,
+                type: finalType,
                 title,
                 source: source || 'manual',
                 startTime,

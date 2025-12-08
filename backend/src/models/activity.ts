@@ -4,13 +4,14 @@ export interface IActivity extends Document {
     userId: mongoose.Types.ObjectId;
     type: 'learn' | 'dsa' | 'project' | 'assignment' | 'exam' | 'timepass' | 'commute' | 'sleep' | 'wake' | 'app_usage' | 'github_event' | 'lecture_cancelled' | 'social';
     title: string;
-    source: 'manual' | 'browser_extension' | 'mobile_tracker' | 'takeout' | 'share' | 'github';
+    source: 'manual' | 'browser_extension' | 'mobile_tracker' | 'takeout' | 'share' | 'github' | 'desktop_app';
     metadata: {
         domain?: string;
         url?: string;
         package?: string;
         repo?: string;
         videoType?: 'short' | 'long';
+        device?: string;
     };
     startTime: Date;
     endTime: Date;
@@ -34,7 +35,7 @@ const ActivitySchema: Schema = new Schema({
     title: { type: String, required: true },
     source: {
         type: String,
-        enum: ['manual', 'browser_extension', 'mobile_tracker', 'takeout', 'share', 'github'],
+        enum: ['manual', 'browser_extension', 'mobile_tracker', 'takeout', 'share', 'github', 'desktop_app'],
         required: true,
     },
     metadata: {
@@ -43,6 +44,7 @@ const ActivitySchema: Schema = new Schema({
         package: String,
         repo: String,
         videoType: { type: String, enum: ['short', 'long'] },
+        device: String,
     },
     startTime: { type: Date, required: true },
     endTime: { type: Date },

@@ -5,6 +5,12 @@ interface User {
     name: string;
     email: string;
     token: string;
+    integrations?: {
+        github?: {
+            username: string;
+            connectedAt: string;
+        };
+    };
 }
 
 interface AuthContextType {

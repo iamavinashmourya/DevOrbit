@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 
@@ -7,21 +7,29 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-200 selection:bg-cyan-500/30">
-            <div className="fixed inset-0 z-0 pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-purple-900/20 blur-[120px] animate-pulse"></div>
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-cyan-900/20 blur-[120px] animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="min-h-screen bg-background text-foreground font-sans transition-colors duration-300">
+            <Sidebar
+                isOpen={isMobileSidebarOpen}
+                onClose={() => setIsMobileSidebarOpen(false)}
+            />
+
+            <div className="md:pl-64 flex flex-col min-h-screen transition-all duration-300">
+                <Topbar onMenuClick={() => setIsMobileSidebarOpen(true)} />
+                <main className="flex-1 p-4 md:p-8 pt-6 relative z-10 max-w-7xl mx-auto w-full">
+                    {children}
+                </main>
             </div>
 
-            <Sidebar />
-            <Topbar />
-
-            <main className="pl-72 pt-24 min-h-screen relative z-10">
-                <div className="p-8 max-w-7xl mx-auto animate-float" style={{ animationDuration: '10s' }}>
-                    {children}
-                </div>
-            </main>
+            {/* Mobile Overlay */}
+            {isMobileSidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm animate-in fade-in"
+                    onClick={() => setIsMobileSidebarOpen(false)}
+                ></div>
+            )}
         </div>
     );
 };

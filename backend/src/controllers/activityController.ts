@@ -89,6 +89,32 @@ export const createActivity = async (req: Request, res: Response) => {
                 existingActivity.startTime = startTime;
             }
 
+            // *** HISTORY LOGIC ***
+            if (!existingActivity.history) {
+                existingActivity.history = [];
+            }
+
+            const lastHistoryItem = existingActivity.history[existingActivity.history.length - 1];
+
+            // Check if same title (accumulate duration)
+            if (lastHistoryItem && lastHistoryItem.title === title) {
+                lastHistoryItem.duration = (lastHistoryItem.duration || 0) + durationMinutes;
+                // Update timestamp to latest? No, keep start timestamp.
+                console.log(`[Activity] Increased duration for existing history item: ${title} (+${durationMinutes}m)`);
+            } else {
+                // New history item
+                existingActivity.history.push({
+                    title: title,
+                    url: metadata?.url || '',
+                    timestamp: new Date(startTime),
+                    duration: durationMinutes
+                });
+                console.log(`[Activity] Added new history item: ${title}`);
+            }
+
+            // Mark modified to ensure deep update saves
+            existingActivity.markModified('history');
+
             const updatedActivity = await existingActivity.save();
             console.log(`[Activity] Merged! Total duration: ${updatedActivity.durationMinutes}min`);
             res.status(200).json(updatedActivity);
@@ -105,6 +131,13 @@ export const createActivity = async (req: Request, res: Response) => {
                 endTime: finalEndTime,
                 durationMinutes,
                 metadata,
+                // Initialize history
+                history: [{
+                    title: title,
+                    url: metadata?.url || '',
+                    timestamp: new Date(startTime),
+                    duration: durationMinutes
+                }]
             });
 
             const createdActivity = await activity.save();

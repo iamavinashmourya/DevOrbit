@@ -100,7 +100,6 @@ const Dashboard: React.FC = () => {
                                 }
                             }
                         };
-                        // @ts-ignore
                         updateUser(updatedUser);
                     }
 
@@ -116,7 +115,7 @@ const Dashboard: React.FC = () => {
             };
             connectGithub();
         }
-    }, [location, user, navigate, githubConnected]);
+    }, [location, user, navigate, githubConnected, updateUser]);
 
     // Fetch GitHub Activity
     useEffect(() => {

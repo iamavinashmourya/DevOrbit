@@ -81,11 +81,6 @@ export default function Tracker() {
             setIsIgnored(true);
             return;
         }
-        // 3. Browsers (Delegate to Extension)
-        if (BROWSERS.some(n => appName.includes(n))) {
-            setIsIgnored(true);
-            return;
-        }
 
         setIsIgnored(false);
 
@@ -113,7 +108,9 @@ export default function Tracker() {
             const shouldSync = isDifferentApp ? durationMinutes > (2 / 60) : durationMinutes > 0;
 
             if (shouldSync) {
-                await sendActivityToBackend(lastActivity.current, startTime, endTime, durationMinutes);
+                // Fix: Round to 2 decimal places to avoid floating point spam (e.g. 1.33333333m)
+                const roundedDuration = Math.round(durationMinutes * 100) / 100;
+                await sendActivityToBackend(lastActivity.current, startTime, endTime, roundedDuration);
                 // Update sync time
                 if (lastActivity.current) {
                     lastActivity.current.lastSyncTime = now;
@@ -253,7 +250,7 @@ export default function Tracker() {
                                 <span className={`flex h-2 w-2 rounded-full animate-pulse ${isIgnored ? 'bg-amber-500' : 'bg-green-500'}`}></span>
                                 <span className="text-xs text-muted-foreground">{isIgnored ? 'Monitoring Paused' : 'Tracking Active'}</span>
                             </span>
-                            <span className="text-[10px] text-muted-foreground opacity-50">v1.2.0</span>
+                            <span className="text-[10px] text-muted-foreground opacity-50">v1.2.1</span>
                         </div>
                     </div>
                 </div>

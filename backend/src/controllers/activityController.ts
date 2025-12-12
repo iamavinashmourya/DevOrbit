@@ -36,7 +36,7 @@ export const createActivity = async (req: Request, res: Response) => {
         const { type, title, url, durationMinutes, source, metadata, startTime, endTime } = req.body;
 
         // --- GLOBAL IGNORE LIST ---
-        if (!title || title === 'New Tab' || title === 'New Tab Page' || title.includes("Windows Start Experience Host") || title.includes("Control Panel")) {
+        if (!title || title === 'New Tab' || title === 'New Tab Page' || title.includes("Windows Start Experience Host") || title.includes("Control Panel") || title.includes("ShellHost")) {
             return res.status(200).json({ message: 'Ignored: System/Empty page' });
         }
 

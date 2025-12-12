@@ -33,7 +33,7 @@ export const getActivities = async (req: Request, res: Response) => {
 
 export const createActivity = async (req: Request, res: Response) => {
     try {
-        const { type, title, url, durationMinutes, source, metadata } = req.body;
+        const { type, title, url, durationMinutes, source, metadata, startTime, endTime } = req.body;
 
         // --- GLOBAL IGNORE LIST ---
         if (!title || title === 'New Tab' || title === 'New Tab Page' || title.includes("Windows Start Experience Host") || title.includes("Control Panel")) {
@@ -51,6 +51,8 @@ export const createActivity = async (req: Request, res: Response) => {
             }
         }
 
+        // Define date for querying
+        const activityDate = startTime ? new Date(startTime) : new Date();
         const startOfDay = new Date(activityDate);
         startOfDay.setHours(0, 0, 0, 0);
 
@@ -79,6 +81,17 @@ export const createActivity = async (req: Request, res: Response) => {
                     return res.status(200).json({ message: 'Ignored: Extension handling this' });
                 }
             }
+        }
+
+        let finalDuration = durationMinutes || 0;
+        let finalEndTime = endTime;
+        if (!finalEndTime) finalEndTime = new Date();
+
+        // Recalculate duration if needed and times provided
+        if (startTime && finalEndTime && !finalDuration) {
+            const start = new Date(startTime).getTime();
+            const end = new Date(finalEndTime).getTime();
+            finalDuration = Math.ceil((end - start) / 60000);
         }
 
         // ** AI Classification for Desktop App & Browser **
@@ -132,7 +145,7 @@ export const createActivity = async (req: Request, res: Response) => {
             console.log(`[Activity] MERGING with existing activity ID: ${existingActivity._id}`);
 
             // Merge: Add duration to existing activity
-            existingActivity.durationMinutes += durationMinutes;
+            existingActivity.durationMinutes += finalDuration;
 
             // Update title to the latest (in case page changed)
             existingActivity.title = title;
@@ -156,16 +169,16 @@ export const createActivity = async (req: Request, res: Response) => {
 
             // Check if same title (accumulate duration)
             if (lastHistoryItem && lastHistoryItem.title === title) {
-                lastHistoryItem.duration = (lastHistoryItem.duration || 0) + durationMinutes;
+                lastHistoryItem.duration = (lastHistoryItem.duration || 0) + finalDuration;
                 // Update timestamp to latest? No, keep start timestamp.
-                console.log(`[Activity] Increased duration for existing history item: ${title} (+${durationMinutes}m)`);
+                console.log(`[Activity] Increased duration for existing history item: ${title} (+${finalDuration}m)`);
             } else {
                 // New history item
                 existingActivity.history.push({
                     title: title,
                     url: metadata?.url || '',
                     timestamp: new Date(startTime),
-                    duration: durationMinutes
+                    duration: finalDuration
                 });
                 console.log(`[Activity] Added new history item: ${title}`);
             }
@@ -187,14 +200,14 @@ export const createActivity = async (req: Request, res: Response) => {
                 source: source || 'manual',
                 startTime,
                 endTime: finalEndTime,
-                durationMinutes,
+                durationMinutes: finalDuration,
                 metadata,
                 // Initialize history
                 history: [{
                     title: title,
                     url: metadata?.url || '',
                     timestamp: new Date(startTime),
-                    duration: durationMinutes
+                    duration: finalDuration
                 }]
             });
 
@@ -202,6 +215,7 @@ export const createActivity = async (req: Request, res: Response) => {
             res.status(201).json(createdActivity);
         }
     } catch (error) {
+        console.error("Create Activity Error:", error);
         res.status(500).json({ message: (error as Error).message });
     }
 };

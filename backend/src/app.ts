@@ -8,8 +8,8 @@ import shareRoutes from './routes/share';
 import reportRoutes from './routes/reports';
 import githubRoutes from './routes/github';
 import aiRoutes from './routes/ai';
-
 import profileRoutes from './routes/profile';
+import syncRoutes from './routes/sync';
 
 const app = express();
 
@@ -30,6 +30,7 @@ app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/auth/github', githubRoutes);
 app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/profile', profileRoutes);
+app.use('/api/v1/sync', syncRoutes);
 
 app.get('/', (req, res) => {
     res.send('StudyTrack API is running');

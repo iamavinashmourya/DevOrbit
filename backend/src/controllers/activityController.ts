@@ -35,6 +35,43 @@ export const createActivity = async (req: Request, res: Response) => {
     try {
         const { type, title, url, durationMinutes, source, metadata, startTime, endTime } = req.body;
 
+        // --- SPLIT LOGIC FOR CROSS-DAY ACTIVITIES ---
+        // If an activity spans across midnight, split it into two requests to ensure accuracy.
+        // E.g. 11:50 PM -> 00:10 AM becomes (11:50 -> 11:59:59) and (00:00 -> 00:10).
+        if (startTime && endTime) {
+            const start = new Date(startTime);
+            const end = new Date(endTime);
+
+            if (start.getDate() !== end.getDate() || start.getMonth() !== end.getMonth() || start.getFullYear() !== end.getFullYear()) {
+                console.log(`[Activity] Splitting cross-day activity: ${start.toISOString()} -> ${end.toISOString()}`);
+
+                // 1. First Part: Start -> Midnight
+                const midnight = new Date(start);
+                midnight.setHours(23, 59, 59, 999);
+
+                const duration1 = Math.ceil((midnight.getTime() - start.getTime()) / 60000);
+
+                // Recursively call for Part 1
+                await createActivity({
+                    ...req,
+                    body: { ...req.body, endTime: midnight.toISOString(), durationMinutes: duration1 }
+                } as Request, { status: () => ({ json: () => { } }) } as Response); // Mock Response
+
+                // 2. Second Part: Midnight Next Day -> End
+                const nextDayStart = new Date(start);
+                nextDayStart.setDate(nextDayStart.getDate() + 1);
+                nextDayStart.setHours(0, 0, 0, 0);
+
+                const duration2 = Math.ceil((end.getTime() - nextDayStart.getTime()) / 60000);
+
+                // Recursively call for Part 2
+                // We return this response as the "Main" response
+                req.body.startTime = nextDayStart.toISOString();
+                req.body.durationMinutes = duration2;
+                return createActivity(req, res);
+            }
+        }
+
         // --- GLOBAL IGNORE LIST ---
         if (!title || title === 'New Tab' || title === 'New Tab Page' || title.includes("Windows Start Experience Host") || title.includes("Control Panel") || title.includes("ShellHost")) {
             return res.status(200).json({ message: 'Ignored: System/Empty page' });
@@ -248,6 +285,120 @@ export const updateActivity = async (req: Request, res: Response) => {
             res.status(404).json({ message: 'Activity not found' });
         }
     } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+export const createBatchActivities = async (req: Request, res: Response) => {
+    try {
+        const { activities } = req.body;
+        if (!activities || !Array.isArray(activities)) {
+            return res.status(400).json({ message: 'Invalid payload: activities array required' });
+        }
+
+        console.log(`[Batch] Received ${activities.length} activities for user ${req.user._id}`);
+
+        // 1. Pre-process and Deduplicate Titles for AI
+        // Identify unique items that need classification
+        const uniqueToClassify = new Set<string>();
+        const titleContextMap = new Map<string, string>();
+
+
+        activities.forEach((act: any) => {
+            // Basic Ignore first
+            if (!act.title || act.title === 'New Tab' || act.title.includes("Windows Start Experience Host") || act.title.includes("Control Panel")) return;
+
+            // Sanitize Title (same logic as single create)
+            let finalTitle = act.title;
+            if (act.source === 'desktop_app' && act.metadata?.package) {
+                const browserNames = ['chrome', 'brave', 'edge', 'firefox', 'opera', 'vivaldi', 'arc', 'browser'];
+                if (browserNames.some(b => act.metadata.package.toLowerCase().includes(b))) {
+                    finalTitle = act.metadata.package;
+                }
+            }
+
+            if ((act.source === 'desktop_app' || act.source === 'browser_extension') && act.type === 'app_usage' && finalTitle) {
+                const key = finalTitle + '||' + (act.metadata?.package || act.metadata?.url || act.metadata?.domain || '');
+                uniqueToClassify.add(key);
+                titleContextMap.set(key, act);
+            }
+        });
+
+        // 2. Parallel AI Classification
+        // We will classify all unique items in parallel
+        const classificationMap = new Map<string, string>();
+
+        if (uniqueToClassify.size > 0) {
+            console.log(`[Batch] Classifying ${uniqueToClassify.size} unique items...`);
+            const { getAICategory } = await import('./aiController');
+
+            // Convert Set to Array for Promise.all
+            const items = Array.from(uniqueToClassify);
+
+            // Throttle logic could be added here if > 10 items
+            const results = await Promise.all(items.map(async (key) => {
+                const [title, context] = key.split('||');
+                try {
+                    const category = await getAICategory(title, context);
+                    return { key, category };
+                } catch (e) {
+                    return { key, category: 'app_usage' }; // Fallback
+                }
+            }));
+
+            results.forEach(r => classificationMap.set(r.key, r.category));
+        }
+
+        // 3. Sequential Save
+        // We must save chronologically to ensure history merging works correctly
+        // Sort by startTime just in case
+        activities.sort((a: any, b: any) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+        let savedCount = 0;
+
+        for (const act of activities) {
+            // Sanitize again (or could have stored)
+            let finalTitle = act.title;
+            if (act.source === 'desktop_app' && act.metadata?.package) {
+                const browserNames = ['chrome', 'brave', 'edge', 'firefox', 'opera', 'vivaldi', 'arc', 'browser'];
+                if (browserNames.some(b => act.metadata.package.toLowerCase().includes(b))) {
+                    finalTitle = act.metadata.package;
+                }
+            }
+
+            // Inject Classification result
+            if ((act.source === 'desktop_app' || act.source === 'browser_extension') && act.type === 'app_usage') {
+                const key = finalTitle + '||' + (act.metadata?.package || act.metadata?.url || act.metadata?.domain || '');
+                if (classificationMap.has(key)) {
+                    act.type = classificationMap.get(key);
+                }
+            }
+
+            // reuse single create logic via internal helper
+            // We can just call createActivity but we need to mock Req/Res which is messy
+            // Better to extract logic, but for now to be safe and quick, we can use the Mock trick 
+            // because createActivity handles the complex split/merge logic well.
+
+            // Note: recursive logic in createActivity returns 'res.json()'. We need to capture that?
+            // Actually, since we are in batch, we don't care about the indvidual response JSONs, just that it saved.
+            // We mock Response.
+
+            await createActivity({
+                ...req,
+                body: act
+            } as Request, {
+                status: () => ({ json: () => { } }),
+                json: () => { },
+                send: () => { }
+            } as unknown as Response);
+
+            savedCount++;
+        }
+
+        res.json({ message: 'Batch processed', count: savedCount });
+
+    } catch (error) {
+        console.error("Batch Error:", error);
         res.status(500).json({ message: (error as Error).message });
     }
 };

@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Bell, Search, Command, Sun, Moon, Menu } from 'lucide-react';
+import { useRefresh } from '../context/RefreshContext';
+import { Bell, Search, Command, Sun, Moon, Menu, RefreshCw } from 'lucide-react';
+import axios from 'axios';
 
 interface TopbarProps {
     onMenuClick?: () => void;
@@ -10,6 +12,27 @@ interface TopbarProps {
 const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
     const { user } = useAuth();
     const { theme, toggleTheme } = useTheme();
+    const { triggerRefresh } = useRefresh();
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            // Trigger remote sync on Desktop
+            await axios.post('http://localhost:4000/api/v1/sync/trigger', {}, {
+                headers: { Authorization: `Bearer ${user?.token}` }
+            });
+            console.log("Remote sync triggered");
+        } catch (err) {
+            console.error("Failed to trigger remote sync", err);
+        }
+
+        // Wait a bit for Desktop to flush (optimistic) then refresh UI
+        setTimeout(() => {
+            triggerRefresh();
+            setIsRefreshing(false);
+        }, 3000); // 3 seconds delay to allow Desktop to sync
+    };
 
     return (
         <div className="h-16 border-b border-border bg-background flex items-center justify-between px-4 md:px-8 sticky top-0 z-40 transition-colors duration-300">
@@ -41,6 +64,15 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
                     className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                 >
                     {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                </button>
+
+                {/* Refresh Button - Placed before Notification Bell */}
+                <button
+                    onClick={handleRefresh}
+                    className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors hidden md:block"
+                    title="Refresh Data"
+                >
+                    <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
                 </button>
 
                 <button className="relative p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors hidden md:block">

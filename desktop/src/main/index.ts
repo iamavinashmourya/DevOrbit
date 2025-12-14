@@ -61,7 +61,30 @@ app.whenReady().then(() => {
       console.error('Failed to get active window:', error);
       return null;
     }
-  })
+  });
+
+  // Batch Queue IPC (Electron Store)
+  // Dynamic import since electron-store is ESM only
+  (async () => {
+    try {
+      const { default: Store } = await import('electron-store');
+      const store = new Store();
+
+      ipcMain.handle('queue-get', () => {
+        return store.get('activityQueue', []);
+      });
+
+      ipcMain.handle('queue-set', (_, queue) => {
+        store.set('activityQueue', queue);
+      });
+
+      ipcMain.handle('queue-clear', () => {
+        store.delete('activityQueue');
+      });
+    } catch (e) {
+      console.error("Failed to init electron-store", e);
+    }
+  })();
 
   createWindow()
 

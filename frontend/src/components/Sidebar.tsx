@@ -16,9 +16,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
     const navItems = [
         { path: '/', label: 'Overview', icon: LayoutDashboard },
+        { path: '/sources', label: 'Devices', icon: Zap },
         { path: '/import', label: 'Import Data', icon: Upload },
         { path: '/reports', label: 'Reports', icon: BarChart2 },
-        { path: '/profile', label: 'Profile', icon: Zap },
+        { path: '/profile', label: 'Profile', icon: BookOpen },
     ];
 
     // Mobile classes: Fixed, transform-based animation

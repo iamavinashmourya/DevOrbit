@@ -1,23 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { useRefresh } from '../context/RefreshContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import SummaryCard from '../components/SummaryCard';
 import QuickAdd from '../components/QuickAdd';
 import Timeline from '../components/Timeline';
 import { BookOpen, Code, Clock, AlertCircle, Github, CheckCircle, Loader2 } from 'lucide-react';
+import { formatDuration } from '../utils/format';
 
 const Dashboard: React.FC = () => {
     const { user, updateUser } = useAuth();
+    const { refreshKey } = useRefresh();
     const location = useLocation();
     const navigate = useNavigate();
     const [stats, setStats] = useState({
-        studyHours: 0,
+        studyMinutes: 0,
         dsaCount: 0,
         timepassMinutes: 0,
     });
     const [activities, setActivities] = useState([]);
-    const [refresh, setRefresh] = useState(0);
     const [githubLoading, setGithubLoading] = useState(false);
     const [githubConnected, setGithubConnected] = useState(false);
     const [githubActivity, setGithubActivity] = useState([]);
@@ -31,7 +33,11 @@ const Dashboard: React.FC = () => {
 
                 const { data } = await axios.get('http://localhost:4000/api/v1/activities', {
                     headers: { Authorization: `Bearer ${user?.token}` },
-                    params: { start: startOfDay, end: endOfDay },
+                    params: {
+                        start: startOfDay,
+                        end: endOfDay,
+                        _t: new Date().getTime() // Cache buster
+                    },
                 });
 
                 const acts = data.activities;
@@ -54,7 +60,7 @@ const Dashboard: React.FC = () => {
                 });
 
                 setStats({
-                    studyHours: parseFloat((studyMins / 60).toFixed(1)),
+                    studyMinutes: studyMins,
                     dsaCount: dsa,
                     timepassMinutes: timepass,
                 });
@@ -69,7 +75,7 @@ const Dashboard: React.FC = () => {
                 setGithubConnected(true);
             }
         }
-    }, [user, refresh]);
+    }, [user, refreshKey]);
 
     const processingRef = React.useRef(false);
 
@@ -134,8 +140,17 @@ const Dashboard: React.FC = () => {
         }
     }, [githubConnected, user]);
 
+    // Temporary helper to trigger refresh locally if needed in children, 
+    // though QuickAdd should ideally use Context too. 
+    // For now we rely on the fact that adding activity is separate or we can refactor QuickAdd later.
+    // Actually, QuickAdd prop onActivityAdded is used. We can just leverage it to re-fetch?
+    // Dashboard handles fetching. So onActivityAdded could trigger a re-fetch.
+    // But since `refreshKey` is global, we can't easily set it from here without `triggerRefresh`.
+    // Let's grab `triggerRefresh` as well to support QuickAdd.
+    const { triggerRefresh } = useRefresh();
+
     const handleActivityAdded = () => {
-        setRefresh((prev) => prev + 1);
+        triggerRefresh();
     };
 
     const handleGithubConnect = () => {
@@ -154,15 +169,17 @@ const Dashboard: React.FC = () => {
                         Welcome back, <span className="text-foreground font-medium">{user?.name}</span>. Here's your progress today.
                     </p>
                 </div>
-                <div className="text-right hidden md:block">
-                    <p className="text-sm text-muted-foreground font-mono tracking-wide">{new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                <div className="flex items-center gap-4">
+                    <p className="text-sm text-muted-foreground font-mono tracking-wide hidden md:block">
+                        {new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                    </p>
                 </div>
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <SummaryCard
-                    title="Study Hours"
-                    value={stats.studyHours}
+                    title="Study Time"
+                    value={formatDuration(stats.studyMinutes)}
                     icon={BookOpen}
                     color="blue"
                     trend="12%"
@@ -177,8 +194,8 @@ const Dashboard: React.FC = () => {
                     trendUp={true}
                 />
                 <SummaryCard
-                    title="Timepass (min)"
-                    value={stats.timepassMinutes}
+                    title="Timepass"
+                    value={formatDuration(stats.timepassMinutes)}
                     icon={AlertCircle}
                     color="red"
                     trend="2%"

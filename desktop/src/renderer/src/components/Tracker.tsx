@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Activity, Monitor, AlertCircle, LogOut, Cloud, CloudUpload, CheckCircle2, EyeOff } from 'lucide-react';
+import { Activity, Monitor, AlertCircle, LogOut, Cloud, CloudUpload, CheckCircle2, EyeOff, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { addToQueue, flushQueue, getQueueSize } from '../utils/queue';
 
 interface WindowInfo {
     title: string;
@@ -22,22 +22,37 @@ interface TrackedActivity {
 interface LastSyncedItem {
     name: string;
     time: string;
-    status: 'success' | 'failed' | 'ignored';
+    status: 'queued' | 'synced' | 'failed' | 'ignored';
 }
 
 const IGNORED_APPS = ['Windows Explorer', 'Command Prompt', 'Windows PowerShell', 'Task Manager', 'LockApp', 'SearchHost', 'ApplicationFrameHost', 'Notepad', 'Windows Start Experience Host', 'Control Panel', 'SystemSettings'];
-const BROWSERS: string[] = []; // Allow all browsers (Backend handles deduplication)
 const SELF_NAMES = ['DevOrbit', 'Electron'];
+const SYNC_INTERVAL = 30 * 60 * 1000; // 30 Minutes
 
 export default function Tracker() {
     const [activeWindow, setActiveWindow] = useState<WindowInfo | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [queueSize, setQueueSize] = useState(0);
     const [lastSynced, setLastSynced] = useState<LastSyncedItem | null>(null);
     const [isIgnored, setIsIgnored] = useState(false);
 
     const navigate = useNavigate();
     const lastActivity = useRef<TrackedActivity | null>(null);
+
+    // Initial Queue Check
+    useEffect(() => {
+        getQueueSize().then(setQueueSize);
+    }, []);
+
+    // 30-Minute Auto Sync Interval
+    useEffect(() => {
+        const syncInterval = setInterval(() => {
+            console.log("Triggering auto-sync...");
+            handleManualSync();
+        }, SYNC_INTERVAL);
+        return () => clearInterval(syncInterval);
+    }, []);
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -65,24 +80,68 @@ export default function Tracker() {
         return () => clearInterval(interval);
     }, [navigate]);
 
+    // SSE Listener for Remote Sync
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        // Native EventSource doesn't support headers easily.
+        // But our backend uses a cookie or we can pass token in query param for SSE?
+        // Standard EventSource doesn't allow Authorization header.
+        // We will pass token in query param (less secure but works for SSE) OR use a library.
+        // For now, let's modify backend to accept token in query for this specific route.
+        // ACTUALLY, let's use a library like `event-source-polyfill` or just fetch?
+        // Wait, standard native EventSource does NOT support custom headers.
+
+        // Let's use fetch loop or just query param. Query param is easiest for now.
+        const eventSource = new EventSource(`http://localhost:4000/api/v1/sync/subscribe?token=${token}`);
+
+        eventSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'sync_request') {
+                console.log("[Tracker] Received remote sync request!");
+                handleManualSync();
+            }
+        };
+
+        eventSource.onerror = (err) => {
+            console.error("[Tracker] SSE Error:", err);
+            eventSource.close();
+        };
+
+        return () => {
+            eventSource.close();
+        };
+    }, []);
+
+    const handleManualSync = async () => {
+        if (isSyncing) return;
+        setIsSyncing(true);
+        try {
+            const result = await flushQueue();
+            if (result.success && result.count > 0) {
+                setLastSynced({
+                    name: `Batch (${result.count})`,
+                    time: new Date().toLocaleTimeString(),
+                    status: 'synced'
+                });
+            }
+            const size = await getQueueSize();
+            setQueueSize(size);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
     const handleActivitySync = async (current: WindowInfo) => {
         const now = new Date();
         const appName = current.owner?.name || 'Unknown';
         const title = current.title;
 
         // --- FILTERS ---
-        // 1. Self Check
-        if (SELF_NAMES.some(n => appName.includes(n))) {
-            setIsIgnored(true);
-            return;
-        }
-        // 2. System Apps
-        if (IGNORED_APPS.some(n => appName.includes(n))) {
-            setIsIgnored(true);
-            return;
-        }
-        // 3. Browsers (Delegate to Extension)
-        if (BROWSERS.some(n => appName.includes(n))) {
+        if (SELF_NAMES.some(n => appName.includes(n)) || IGNORED_APPS.some(n => appName.includes(n))) {
             setIsIgnored(true);
             return;
         }
@@ -100,20 +159,44 @@ export default function Tracker() {
             return;
         }
 
-        // Determine if we should sync (App changed OR 1 minute passed)
+        // Determine if we should capture (App changed OR 1 minute passed)
         const isDifferentApp = lastActivity.current.title !== title || lastActivity.current.ownerName !== appName;
         const timeSinceLastSync = (now.getTime() - lastActivity.current.lastSyncTime.getTime()) / 1000 / 60; // in minutes
 
         if (isDifferentApp || timeSinceLastSync >= 1) {
             const endTime = now;
-            const startTime = lastActivity.current.lastSyncTime; // Sync from last success
+            const startTime = lastActivity.current.lastSyncTime;
             const durationMinutes = (endTime.getTime() - startTime.getTime()) / 1000 / 60;
 
-            // Threshold: 2 seconds
             const shouldSync = isDifferentApp ? durationMinutes > (2 / 60) : durationMinutes > 0;
 
             if (shouldSync) {
-                await sendActivityToBackend(lastActivity.current, startTime, endTime, durationMinutes);
+                const roundedDuration = Math.round(durationMinutes * 100) / 100;
+
+                // Add to Queue instead of direct Send
+                await addToQueue({
+                    type: 'app_usage',
+                    title: `${lastActivity.current.ownerName} - ${lastActivity.current.title}`,
+                    source: 'desktop_app',
+                    startTime: startTime,
+                    endTime: endTime,
+                    durationMinutes: roundedDuration,
+                    metadata: {
+                        package: lastActivity.current.ownerName,
+                        device: 'Windows PC'
+                    }
+                });
+
+                // Update UI state
+                const size = await getQueueSize();
+                setQueueSize(size);
+
+                setLastSynced({
+                    name: lastActivity.current.ownerName,
+                    time: new Date().toLocaleTimeString(),
+                    status: 'queued'
+                });
+
                 // Update sync time
                 if (lastActivity.current) {
                     lastActivity.current.lastSyncTime = now;
@@ -132,43 +215,6 @@ export default function Tracker() {
         }
     };
 
-    const sendActivityToBackend = async (activity: TrackedActivity, start: Date, end: Date, duration: number) => {
-        setIsSyncing(true);
-        try {
-            const token = localStorage.getItem('token');
-            await axios.post('http://localhost:4000/api/v1/activities', {
-                type: 'app_usage',
-                title: `${activity.ownerName} - ${activity.title}`,
-                source: 'desktop_app',
-                startTime: start,
-                endTime: end,
-                durationMinutes: duration,
-                metadata: {
-                    package: activity.ownerName,
-                    device: 'Windows PC'
-                }
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            setLastSynced({
-                name: activity.ownerName,
-                time: new Date().toLocaleTimeString(),
-                status: 'success'
-            });
-
-        } catch (err) {
-            console.error('Sync failed', err);
-            setLastSynced({
-                name: activity.ownerName,
-                time: new Date().toLocaleTimeString(),
-                status: 'failed'
-            });
-        } finally {
-            setIsSyncing(false);
-        }
-    };
-
     const handleLogout = () => {
         localStorage.removeItem('token');
         navigate('/login');
@@ -177,9 +223,21 @@ export default function Tracker() {
     return (
         <div className="min-h-screen bg-background text-foreground p-8 flex flex-col items-center justify-center relative">
             <div className="absolute top-4 right-4 flex gap-2">
-                <div className={`p-2 rounded-full transition-colors ${isSyncing ? 'bg-primary/20 text-primary' : 'bg-transparent text-muted-foreground'}`}>
-                    {isSyncing ? <CloudUpload className="h-4 w-4 animate-bounce" /> : <Cloud className="h-4 w-4 opacity-50" />}
+                <div className={`p-2 rounded-full transition-colors flex items-center gap-1 ${queueSize > 0 ? 'text-primary' : 'text-muted-foreground'}`} title={`${queueSize} items pending`}>
+                    <CloudUpload className="h-4 w-4" />
+                    <span className="text-[10px] font-mono">{queueSize}</span>
                 </div>
+
+                {/* Manual Sync Button */}
+                <button
+                    onClick={handleManualSync}
+                    className={`p-2 rounded-full transition-all border border-transparent ${isSyncing ? 'bg-primary/20 text-primary' : 'hover:bg-muted text-muted-foreground hover:text-foreground'}`}
+                    disabled={isSyncing}
+                    title="Sync Now"
+                >
+                    <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                </button>
+
                 <button
                     onClick={handleLogout}
                     className="p-2 text-muted-foreground hover:text-foreground transition-colors"
@@ -228,10 +286,12 @@ export default function Tracker() {
                         {/* Last Sync Indicator */}
                         {lastSynced && !isIgnored && (
                             <div className="flex items-center justify-between text-xs bg-secondary/30 p-2 rounded-md border border-border/30 animate-in fade-in slide-in-from-top-2 duration-300">
-                                <span className="text-muted-foreground">Last Synced:</span>
+                                <span className="text-muted-foreground">Latest Activity:</span>
                                 <div className="flex items-center gap-1.5">
-                                    {lastSynced.status === 'success' ? (
+                                    {lastSynced.status === 'synced' ? (
                                         <CheckCircle2 className="h-3 w-3 text-green-500" />
+                                    ) : lastSynced.status === 'queued' ? (
+                                        <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" title="Queued locally" />
                                     ) : (
                                         <AlertCircle className="h-3 w-3 text-red-500" />
                                     )}
@@ -253,7 +313,7 @@ export default function Tracker() {
                                 <span className={`flex h-2 w-2 rounded-full animate-pulse ${isIgnored ? 'bg-amber-500' : 'bg-green-500'}`}></span>
                                 <span className="text-xs text-muted-foreground">{isIgnored ? 'Monitoring Paused' : 'Tracking Active'}</span>
                             </span>
-                            <span className="text-[10px] text-muted-foreground opacity-50">v1.2.0</span>
+                            <span className="text-[10px] text-muted-foreground opacity-50">v1.3.0 (Batch)</span>
                         </div>
                     </div>
                 </div>
